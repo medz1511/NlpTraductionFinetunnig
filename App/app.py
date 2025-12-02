@@ -40,4 +40,4 @@ if st.button("Traduire", type="primary"):
 
 # Footer
 st.markdown("---")
-st.caption("Projet réalisé avec FastAPI (Backend) et Streamlit (Frontend).")
+st.caption("Projet réalisé avec FastAPI  et Streamlit.")
