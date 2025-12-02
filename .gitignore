@@ -1,0 +1,28 @@
+*.safetensors
+*.bin
+api/modele_final_local/
+backend/modele_final_local/
+modele_final_local/
+venv/
+__pycache__/
+App\NlpTraductorApp
+api\NlpTraductorApi
+
+# Ignorer les environnements virtuels (très important)
+venv/
+env/
+.env
+
+# Ignorer le cache Python
+__pycache__/
+*.pyc
+
+# Ignorer le dossier du modèle lourd (GitHub limite à 100Mo)
+# On expliquera dans le README comment le télécharger
+modele_final_local/
+*.zip
+
+# Ignorer les fichiers systèmes et IDE
+.DS_Store
+.vscode/
+.idea/
