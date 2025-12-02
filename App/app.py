@@ -19,7 +19,7 @@ if st.button("Traduire", type="primary"):
             try:
                 # Appel à l'API FastAPI (qui tourne sur le port 8000)
                 response = requests.post(
-                    "https://nlptraductionfinetunnigapi.onrender.com",
+                    "https://nlptraductionfinetunnigapi.onrender.com/translate",
                     json={"text": text_input}
                 )
                 
