@@ -5,7 +5,7 @@ import torch
 import os
 
 app = FastAPI(title="API de Traduction NMT", version="1.0")
-
+from torch.quantization import quantize_dynamic
 # --- LOGIQUE CLOUD VS LOCAL ---
 # Si le dossier local existe (sur ton PC), on l'utilise.
 # Sinon (sur Render), on utilise le modèle officiel de Hugging Face.
@@ -21,9 +21,18 @@ else:
 
 # Chargement
 try:
+    print(f"Chargement du modèle depuis : {model_name}")
     tokenizer = MarianTokenizer.from_pretrained(model_name)
-    model = MarianMTModel.from_pretrained(model_name)
-    print("✅ Modèle chargé avec succès !")
+    model_brut = MarianMTModel.from_pretrained(model_name)
+    print(" Modèle chargé avec succès !!!")
+    print("Compression du modèle  en cours...")
+    model = quantize_dynamic(
+        model_brut, 
+        {torch.nn.Linear}, 
+        dtype=torch.qint8
+    )
+    del model_brut  # Libérer de la mémoire
+    print("✅ Modèle compressé et chargé avec succès !
 except Exception as e:
     print(f"❌ Erreur critique : {e}")
 
