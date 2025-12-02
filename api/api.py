@@ -32,7 +32,7 @@ try:
         dtype=torch.qint8
     )
     del model_brut  # Libérer de la mémoire
-    print("✅ Modèle compressé et chargé avec succès !
+    print("✅ Modèle compressé et chargé avec succès !")
 except Exception as e:
     print(f"❌ Erreur critique : {e}")
 
