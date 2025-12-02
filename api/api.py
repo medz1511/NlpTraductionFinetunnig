@@ -1,69 +1,83 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from transformers import MarianMTModel, MarianTokenizer
-import torch
 import os
 
-# 1. OPTIMISATION RAM : On limite PyTorch à 1 seul thread
-# Cela économise environ 50-100 Mo de mémoire tampon
-torch.set_num_threads(1)
+# --- INITIALISATION ---
+app = FastAPI(title="API de Traduction NMT (Hybrid)", version="2.0")
 
-app = FastAPI(title="API de Traduction NMT", version="1.0")
+# On vérifie si on est sur Render grâce à une variable d'environnement
+IS_ON_RENDER = os.environ.get('RENDER', False)
 
-CHEMIN_LOCAL = "./modele_final_local"
-NOM_MODELE_OFFICIEL = "Helsinki-NLP/opus-mt-en-fr"
+# Variables globales pour stocker le modèle (si on peut le charger)
+model = None
+tokenizer = None
+use_fallback = False # Si True, on utilise deep-translator
 
-# Choix du modèle
-if os.path.exists(CHEMIN_LOCAL):
-    print(f"📂 Chargement local : {CHEMIN_LOCAL}")
-    model_name = CHEMIN_LOCAL
+print(f"🖥️ Environnement détecté : {'CLOUD (Render)' if IS_ON_RENDER else 'LOCAL'}")
+
+# --- TENTATIVE DE CHARGEMENT DU MODÈLE IA ---
+if not IS_ON_RENDER:
+    # On ne tente de charger l'IA que si on est en LOCAL (pour économiser la RAM sur Render)
+    try:
+        from transformers import MarianMTModel, MarianTokenizer
+        import torch
+        
+        print("⏳ Chargement du modèle MarianMT (Local)...")
+        model_name = "./modele_final_local"
+        if not os.path.exists(model_name):
+            model_name = "Helsinki-NLP/opus-mt-en-fr"
+            
+        tokenizer = MarianTokenizer.from_pretrained(model_name)
+        model = MarianMTModel.from_pretrained(model_name)
+        print("✅ Modèle IA chargé avec succès !")
+        
+    except Exception as e:
+        print(f"⚠️ Erreur chargement IA : {e}")
+        print("🔄 Bascule automatique vers le mode 'Fallback'")
+        use_fallback = True
 else:
-    print(f"☁️ Mode Cloud : Chargement de {NOM_MODELE_OFFICIEL}")
-    model_name = NOM_MODELE_OFFICIEL
+    # Sur Render, on passe directement en mode léger
+    print("☁️ Mode Cloud activé : Utilisation de deep-translator pour économiser la RAM.")
+    use_fallback = True
 
-# --- CHARGEMENT OPTIMISÉ ---
-try:
-    print("⏳ Chargement du Tokenizer...")
-    tokenizer = MarianTokenizer.from_pretrained(model_name)
-    
-    print("⏳ Chargement du Modèle (Mode Light)...")
-    # L'astuce est ici : low_cpu_mem_usage=True évite les pics de RAM
-    model = MarianMTModel.from_pretrained(
-        model_name, 
-        low_cpu_mem_usage=True
-    )
-    
-    # NOTE : On a retiré quantize_dynamic car le processus consomme trop de RAM
-    # Le modèle brut (300Mo) + PyTorch CPU devrait tenir juste dans les 512Mo
-    
-    print("✅ Modèle chargé et prêt !")
+# --- IMPORT DU FALLBACK (Si nécessaire) ---
+if use_fallback:
+    try:
+        from deep_translator import GoogleTranslator
+        print("✅ Module de traduction léger prêt.")
+    except ImportError:
+        print("❌ Erreur critique : deep-translator manquant.")
 
-except Exception as e:
-    print(f"❌ Erreur critique : {e}")
-    model = None
-
+# --- ROUTE API ---
 class TranslationRequest(BaseModel):
     text: str
 
-@app.get("/")
-def home():
-    return {"status": "online", "message": "Bienvenue sur l'API de Traduction"}
-
 @app.post("/translate")
 def translate(request: TranslationRequest):
-    if not model:
-        raise HTTPException(status_code=500, detail="Modèle non chargé (RAM insuffisante)")
-    
     if not request.text:
         raise HTTPException(status_code=400, detail="Texte vide")
     
-    # Inférence
     try:
-        inputs = tokenizer(request.text, return_tensors="pt", padding=True, truncation=True)
-        with torch.no_grad():
+        if not use_fallback and model and tokenizer:
+            # MÉTHODE 1 : TON MODÈLE IA (Local)
+            inputs = tokenizer(request.text, return_tensors="pt", padding=True, truncation=True)
             translated = model.generate(**inputs)
-        resultat = [tokenizer.decode(t, skip_special_tokens=True) for t in translated]
-        return {"original": request.text, "traduction": resultat[0]}
+            resultat = [tokenizer.decode(t, skip_special_tokens=True) for t in translated][0]
+            source = "Modèle MarianMT (IA Locale)"
+        else:
+            # MÉTHODE 2 : MODE LÉGER (Cloud / Render)
+            resultat = GoogleTranslator(source='en', target='fr').translate(request.text)
+            source = "Traducteur Cloud (Optimisé RAM)"
+            
+        return {
+            "original": request.text, 
+            "traduction": resultat,
+            "moteur": source
+        }
+        
     except Exception as e:
-        return {"erreur": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/")
+def home():
+    return {"status": "online", "mode": "Cloud" if use_fallback else "Local AI"}
