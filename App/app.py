@@ -61,8 +61,8 @@ with st.sidebar:
     - ☁️ **Déploiement :** Render
     
     **Auteur :**
-    *Mohamed Sall & Babacar Ndiaye*
-    *(Master 2 IABD)*
+    *Mohamed Sall & Babacar*
+    *(Master 2 NLP)*
     """)
     st.divider()
     st.info("ℹ️ Le backend utilise une stratégie hybride (IA Locale / API Légère) selon les ressources disponibles.")
@@ -139,4 +139,9 @@ if st.button("✨ Traduire maintenant", type="primary"):
         st.toast("⚠️ Veuillez entrer du texte avant de traduire.", icon="⚠️")
 
 # --- FOOTER ---
-st.markdown("                       &copy;KounamaDev 2025 Mohamed SALL & Babacar Ndiaye | Tous droits réservés.", unsafe_allow_html=True)       ")
+
+st.markdown("""
+<div class="footer">
+    &copy;KounamaDev 2025 Mohamed SALL & Babacar Ndiaye | Tous droits réservés."
+</div>
+""", unsafe_allow_html=True)
